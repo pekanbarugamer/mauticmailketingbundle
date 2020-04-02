@@ -17,7 +17,7 @@ Navigate to the Plugins page and click "Install/Upgrade Plugins". You should now
 ### Emails
 Navigate to the Configuration page and open Email Settings section. Set "Mailketing - API" service to send email through and enter your Mailketing API key.
 
-### Webhooks
+### Webhooks 
 1. Navigate to your Mailketing Page > Integration > Webhhok.
 2. Input Webhook:
     1. URL: https://YOURMAUTICSITE/mailer/mailketing_api/callback
