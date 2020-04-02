@@ -6,7 +6,7 @@
     "install-directory-name": "MauticMailketingBundle"
   },
   "require": {
-    "mautic/composer-plugin": "^1.0.1",
+    "mautic/composer-plugin": "^1.0.1"
   },
   "license": "GPL-3.0-only",
   "authors": [
