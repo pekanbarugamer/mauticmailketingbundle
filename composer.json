@@ -1,7 +1,4 @@
 {
   "name": "pekanbarugamer/mautic-mailketing",
-  "description": "Allows to send E-mails with Mailketing",
-  "require": {
-    "mautic/composer-plugin": "^1.0.1"
-  }
+  "description": "Allows to send E-mails with Mailketing"
 }
