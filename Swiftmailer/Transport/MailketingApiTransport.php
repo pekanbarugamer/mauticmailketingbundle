@@ -12,6 +12,9 @@ use Swift_Mime_Message;
 use Symfony\Component\HttpFoundation\Request;
 use GuzzleHttp\Client;
 use Symfony\Component\Translation\TranslatorInterface;
+use Mautic\EmailBundle\Model\TransportCallback;
+use Mautic\LeadBundle\Entity\DoNotContact;
+use Psr\Log\LoggerInterface;
 
 /**
  * Class MailketingApiTransport.
@@ -50,7 +53,7 @@ class MailketingApiTransport extends AbstractTokenArrayTransport implements \Swi
     {
         $this->apiKey = $apiKey;
         $this->translator = $translator;
-        $this->mailketingApiCallback = $smailketingApiCallback;
+        $this->mailketingApiCallback = $mailketingApiCallback;
     }
 
     /**
@@ -120,96 +123,201 @@ class MailketingApiTransport extends AbstractTokenArrayTransport implements \Swi
     public function send(Swift_Mime_Message $message, &$failedRecipients = null)
     {
         $result = 0;
-        $smtpEmail = NULL;
-        //$config = Configuration::getDefaultConfiguration()->setApiKey('api-key', $this->apiKey);
-        //$smtpApiInstance = new SMTPApi(new Client(), $config);
-        $data = [];
-        $data['api_token']=$this->apiKey;
+        if ($event = $this->getDispatcher()->createSendEvent($this, $message)) {
+            $this->getDispatcher()->dispatchEvent($event, 'beforeSendPerformed');
+            if ($event->bubbleCancelled()) {
+                return 0;
+            }
+        }
+
+      /**$data = [];
+        $api_token=$this->apiKey;
+        //$smtpEmail = NULL;
+
+        $from = array_map(function ($email, $name) {
+
+        }, array_keys($message->getFrom()), $message->getFrom() );
+        //$data['subject'] = $message->getSubject();
+        //$data['content'] = $message->getBody();
+        //$data['recipient'] = 'fadlidzilikram@gmail.com';
+        /**$attachments = $message->getAttachments();
+        if (!empty($attachments)) {
+            foreach ($attachments as $attachment) {
+                if (stream_is_local($attachment['filePath'])) {
+                }
+                else {
+                    $data['attachment'][] = ['name' => $attachment['fileName'],'url' => $attachment['filePath']];
+                }
+            }
+        }
+//$recipient='fadlidzilikram@gmail.com'; //penerima email
+$from2=$message->getFrom();
+$from=array_keys($from2);
+
+$from_email=$from[0];
+$from_name=$from2[$from_email];
+$recipient=$message->getTo();
+$recipient=array_keys($recipient);
+$params = [
+'from_name' => $from_name,
+'from_email' => $from_email,
+'recipient' => $recipient[0],
+'subject' =>  $message->getSubject(),
+'content' => $message->getBody(),
+'api_token' => $this->apiKey,
+];**/
+$mailketingMessage = $this->getMailketingMessage($message);
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL,"https://app.mailketing.id/api/v2/send");
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($mailketingMessage));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $output = curl_exec ($ch);
+        //print_r($output);
+        curl_close ($ch);
+
+      $result++;
+      return $result;
+    }
+
+
+    public function getMailketingMessage(Swift_Mime_Message $message)
+    {
+        $tags      = [];
+        $inlineCss = null;
 
         $this->message = $message;
-        $metadata = $this->getMetadata();
-        $mauticTokens = $mergeVars = $mergeVarPlaceholders = [];
-        $tokens = [];
+        $metadata      = $this->getMetadata();
+        $mauticTokens  = $mergeVars = $mergeVarPlaceholders = [];
 
-        // Mailketing uses {NAME} for tokens so Mautic's need to be converted.
+        // mailketing uses {{ name }} for tokens so Mautic's need to be converted; although using their {{{ }}} syntax to prevent HTML escaping
         if (!empty($metadata)) {
-            $metadataSet = reset($metadata);
-            $tokens = (!empty($metadataSet['tokens'])) ? $metadataSet['tokens'] : [];
+            $metadataSet  = reset($metadata);
+            $tokens       = (!empty($metadataSet['tokens'])) ? $metadataSet['tokens'] : [];
             $mauticTokens = array_keys($tokens);
 
             $mergeVars = $mergeVarPlaceholders = [];
             foreach ($mauticTokens as $token) {
-                $mergeVars[$token] = strtoupper(preg_replace('/[^a-z0-9]+/i', '', $token));
-                $mergeVarPlaceholders[$token] = '{'.$mergeVars[$token].'}';
+                $mergeVars[$token]            = strtoupper(preg_replace('/[^a-z0-9]+/i', '', $token));
+                $mergeVarPlaceholders[$token] = '{{{ '.$mergeVars[$token].' }}}';
             }
         }
 
         $message = $this->messageToArray($mauticTokens, $mergeVarPlaceholders, true);
+
+        // mailketing requires a subject
         if (empty($message['subject'])) {
-            throw new Exception($this->translator->trans('mautic.email.subject.notblank', [], 'validators'));
+            throw new \Exception($this->translator->trans('mautic.email.subject.notblank', [], 'validators'));
         }
 
-        if (empty($message['html'])) {
-            throw new Exception($this->translator->trans('mautic.email.html.notblank', [], 'validators'));
-
+        if (isset($message['headers']['X-MC-InlineCSS'])) {
+            $inlineCss = $message['headers']['X-MC-InlineCSS'];
         }
-        $data['subject'] = $message['subject'];
-        $data['content'] = $message['html'];
-        $data['from_name'] = $message['from']['name'];
-        $data['from_email'] = $message['from']['email'];
-        if (!empty($message['headers'])) {
-            $data['headers'] = $message['headers'];
-        }
-
         if (isset($message['headers']['X-MC-Tags'])) {
-            $data['tags'] = explode(',', $message['headers']['X-MC-Tags']);
+            $tags = explode(',', $message['headers']['X-MC-Tags']);
         }
-        $attachments = $this->message->getAttachments();
-        if (!empty($attachments)) {
-            foreach ($attachments as $attachment) {
-                if (stream_is_local($attachment['filePath'])) {
-                    /**$fileContent = file_get_contents($attachment['filePath']);
 
-                    // Breaks current iteration if content of the local file
-                    // is wrong.
-                    if (!$fileContent) {
-                        continue;
-                    }
+        $recipients = [];
+        foreach ($message['recipients']['to'] as $to) {
+            $recipient = [
+                'address'           => $to,
+                'substitution_data' => [],
+                'metadata'          => [],
+            ];
 
-                    $data['attachment'][] = new SendSmtpEmailAttachment([
-                        'name' => $attachment['fileName'],
-                        'content' => base64_encode($fileContent),
-                    ]);**/
+            if (isset($metadata[$to['email']]['tokens'])) {
+                foreach ($metadata[$to['email']]['tokens'] as $token => $value) {
+                    $recipient['substitution_data'][$mergeVars[$token]] = $value;
                 }
-                else {
-                    $data['attachment'][] = new SendSmtpEmailAttachment([
-                        'name' => $attachment['fileName'],
-                        'url' => $attachment['filePath'],
-                    ]);
+
+                unset($metadata[$to['email']]['tokens']);
+                $recipient['metadata'] = $metadata[$to['email']];
+            }
+
+
+            if (empty($recipient['substitution_data'])) {
+                $recipient['substitution_data'] = new \stdClass();
+            }
+
+            // mailketing doesn't like empty metadata
+            if (empty($recipient['metadata'])) {
+                unset($recipient['metadata']);
+            }
+
+            $recipients[] = $recipient;
+
+
+            foreach (['cc', 'bcc'] as $copyType) {
+                if (!empty($message['recipients'][$copyType])) {
+                    foreach ($message['recipients'][$copyType] as $email => $content) {
+                        $copyRecipient = [
+                            'address'   => ['email' => $email],
+                            'header_to' => $to['email'],
+                        ];
+
+                        if (!empty($recipient['substitution_data'])) {
+                            $copyRecipient['substitution_data'] = $recipient['substitution_data'];
+                        }
+
+                        $recipients[] = $copyRecipient;
+                    }
                 }
             }
         }
 
+        $content = [
+            'from_name'    => (!empty($message['from']['name'])) ? $message['from']['name'] : $message['from']['email'],
+                'from_email'    => $message['from']['email'],
+            'subject' => $message['subject'],
+        ];
 
-        foreach ($message['recipients']['to'] as $to) {
-          $data['recipient']='';
-          try {
-            $data['recipient']=$to['email'];
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL,"https://app.mailketing.id/api/v1/send");
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            $output = curl_exec ($ch);
-            //print_r($output);
-            curl_close ($ch);
-          $result++;
-          } catch (Exception $e) {
-              $this->throwException($e->getMessage());
-          }
+        if (!empty($message['headers'])) {
+            $content['headers'] = $message['headers'];
         }
 
-        return $result;
+        // mailketing will set parts regardless if they are empty or not
+        if (!empty($message['html'])) {
+            $content['html'] = $message['html'];
+        }
+
+        if (!empty($message['text'])) {
+            $content['text'] = $message['text'];
+        }
+
+        // Add Reply To
+        if (isset($message['replyTo'])) {
+            $content['reply_to'] = $message['replyTo']['email'];
+        }
+
+        $encoder = new \Swift_Mime_ContentEncoder_Base64ContentEncoder();
+        foreach ($this->message->getChildren() as $child) {
+            if ($child instanceof \Swift_Image) {
+                $content['inline_images'][] = [
+                    'type' => $child->getContentType(),
+                    'name' => $child->getId(),
+                    'data' => $encoder->encodeString($child->getBody()),
+                ];
+            }
+        }
+
+        $mailketingMessage = [
+            'content'    => $content,
+            'recipients' => $recipients,
+            'inline_css' => $inlineCss,
+            'tags'       => $tags,
+        ];
+
+        if (!empty($message['attachments'])) {
+            foreach ($message['attachments'] as $key => $attachment) {
+                $message['attachments'][$key]['data'] = $attachment['content'];
+                unset($message['attachments'][$key]['content']);
+            }
+            $mailketingMessage['content']['attachments'] = $message['attachments'];
+        }
+
+        $mailketingMessage['api_token']=$this->apiKey;
+
+        return $mailketingMessage;
     }
 
 }
