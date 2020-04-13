@@ -129,43 +129,6 @@ class MailketingApiTransport extends AbstractTokenArrayTransport implements \Swi
                 return 0;
             }
         }
-
-      /**$data = [];
-        $api_token=$this->apiKey;
-        //$smtpEmail = NULL;
-
-        $from = array_map(function ($email, $name) {
-
-        }, array_keys($message->getFrom()), $message->getFrom() );
-        //$data['subject'] = $message->getSubject();
-        //$data['content'] = $message->getBody();
-        //$data['recipient'] = 'fadlidzilikram@gmail.com';
-        /**$attachments = $message->getAttachments();
-        if (!empty($attachments)) {
-            foreach ($attachments as $attachment) {
-                if (stream_is_local($attachment['filePath'])) {
-                }
-                else {
-                    $data['attachment'][] = ['name' => $attachment['fileName'],'url' => $attachment['filePath']];
-                }
-            }
-        }
-//$recipient='fadlidzilikram@gmail.com'; //penerima email
-$from2=$message->getFrom();
-$from=array_keys($from2);
-
-$from_email=$from[0];
-$from_name=$from2[$from_email];
-$recipient=$message->getTo();
-$recipient=array_keys($recipient);
-$params = [
-'from_name' => $from_name,
-'from_email' => $from_email,
-'recipient' => $recipient[0],
-'subject' =>  $message->getSubject(),
-'content' => $message->getBody(),
-'api_token' => $this->apiKey,
-];**/
 $mailketingMessage = $this->getMailketingMessage($message);
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL,"https://app.mailketing.id/api/v2/send");
