@@ -8,7 +8,7 @@ This Plugin brings Mailketing integration to Mautic 2.15.2 and newer.
 Licensed under GNU General Public License v3.0.
 
 ## Installation via composer
-1. Execute `composer require pekanbarugamer/mautic-mailketing` in the main directory of the Mautic installation.
+1. Execute `composer require pekanbarugamer/mauticmailketingbundle` in the main directory of the Mautic installation.
 2. Clear the cache via console command `php app/console cache:clear --env=prod` (might take a while) *OR* manually delete the `app/cache/prod` directory.
 
 ## Configuration
