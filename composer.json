@@ -1,5 +1,19 @@
 {
   "name": "pekanbarugamer/mautic-mailketing",
   "version": "1.0.0",
-  "description": "Allows to send E-mails with Mailketing"
+  "description": "Allows to send E-mails with Mailketing",
+  "type": "mautic-plugin",
+  "extra": {
+    "install-directory-name": "MauticSendinblueBundle"
+  },
+  "require": {
+    "mautic/composer-plugin": "^1.0.1",
+  },
+  "license": "GPL-3.0-only",
+  "authors": [
+    {
+      "name": "Fadli",
+      "email": "fadli@mailketing.co.id"
+    }
+  ]
 }
