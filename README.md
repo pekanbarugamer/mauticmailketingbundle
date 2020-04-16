@@ -8,7 +8,7 @@ Untuk Mautic 2.15 Keatas
 Licensed under GNU General Public License v3.0.
 
 ## Installation Step #1
-1. Masuk Putty / ssh console dan menuji directori mautic anda
+1. Masuk Putty / ssh console dan menuju directori mautic anda
 2. Execute `composer require pekanbarugamer/mauticmailketingbundle`
 3. Apabila sukses / terjadi error karena memory tidak cukup, tidak masalah, bisa lanjut ke step selanjutnya
 
